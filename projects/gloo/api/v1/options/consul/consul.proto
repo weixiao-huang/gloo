@@ -8,6 +8,8 @@ option (gogoproto.equal_all) = true;
 import "extproto/ext.proto";
 option (extproto.hash_all) = true;
 
+import "google/protobuf/wrappers.proto";
+
 import "gloo/projects/gloo/api/v1/options/service_spec.proto";
 
 // Upstream Spec for Consul Upstreams
@@ -41,4 +43,8 @@ message UpstreamSpec {
     bool connect_enabled = 4;
     // The data centers in which the service instance represented by this upstream is registered.
     repeated string data_centers = 5;
+
+    // Whether or not to use HTTP (false, default) or HTTPS (true) when communicating with this consul upstream.
+    // If this configuration includes an SSL config, HTTPS is always used and this value is ignored.
+    google.protobuf.BoolValue use_tls = 8;
 }

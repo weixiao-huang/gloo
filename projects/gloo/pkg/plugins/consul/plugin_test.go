@@ -4,8 +4,21 @@ import (
 	"net"
 	"net/url"
 
+	"github.com/gogo/protobuf/types"
+
+	envoyapi "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	envoyauth "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
+	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
+	"github.com/solo-io/gloo/projects/gloo/pkg/api/v1/options/consul"
+	"github.com/solo-io/gloo/projects/gloo/pkg/plugins"
+	"github.com/solo-io/gloo/projects/gloo/pkg/utils"
+	"github.com/solo-io/solo-kit/pkg/api/v1/resources/core"
+
+	v1 "github.com/solo-io/gloo/projects/gloo/pkg/api/v1"
+
 	mock_consul2 "github.com/solo-io/gloo/projects/gloo/pkg/plugins/consul/mocks"
 
+	envoycore "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/golang/mock/gomock"
 	consulapi "github.com/hashicorp/consul/api"
 	. "github.com/onsi/ginkgo"
@@ -118,5 +131,32 @@ var _ = Describe("Resolve", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		Expect(u).To(Equal(&url.URL{Scheme: "http", Host: "5.6.7.8:1234"}))
+	})
+
+	It("ProcessUpstream reacts to useTLS flag by adding socket to envoyAPi", func() {
+		params := plugins.Params{}
+		upstream := &v1.Upstream{
+			Metadata: core.Metadata{
+				Name:      "upstreamName",
+				Namespace: "ns",
+			},
+			UpstreamType: &v1.Upstream_Consul{
+				Consul: &consul.UpstreamSpec{
+					UseTls: &types.BoolValue{Value: true},
+				},
+			},
+		}
+		out := &envoyapi.Cluster{}
+
+		tlsContext := &envoyauth.UpstreamTlsContext{}
+		expectedSocket := &envoycore.TransportSocket{
+			Name:       wellknown.TransportSocketTls,
+			ConfigType: &envoycore.TransportSocket_TypedConfig{TypedConfig: utils.MustMessageToAny(tlsContext)},
+		}
+
+		err := NewPlugin(consulWatcherMock, nil, nil).ProcessUpstream(params, upstream, out)
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(out.TransportSocket).To(Equal(expectedSocket))
 	})
 })

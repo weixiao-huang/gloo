@@ -4,7 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"sync"
 	"time"
+
+	envoyauth "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
+	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
+	"github.com/solo-io/gloo/projects/gloo/pkg/utils"
+	"github.com/solo-io/gloo/projects/gloo/pkg/xds"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/rotisserie/eris"
@@ -14,9 +20,9 @@ import (
 	"github.com/solo-io/gloo/projects/gloo/pkg/upstreams/consul"
 
 	envoyapi "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	envoycore "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	v1 "github.com/solo-io/gloo/projects/gloo/pkg/api/v1"
 	"github.com/solo-io/gloo/projects/gloo/pkg/plugins"
-	"github.com/solo-io/gloo/projects/gloo/pkg/xds"
 )
 
 var _ discovery.DiscoveryPlugin = new(plugin)
@@ -30,6 +36,8 @@ type plugin struct {
 	client             consul.ConsulWatcher
 	resolver           DnsResolver
 	dnsPollingInterval time.Duration
+	upstreamHttpsMap   map[string]bool
+	mapLock            sync.RWMutex
 }
 
 func (p *plugin) Resolve(u *v1.Upstream) (*url.URL, error) {
@@ -79,7 +87,9 @@ func NewPlugin(client consul.ConsulWatcher, resolver DnsResolver, dnsPollingInte
 	if dnsPollingInterval != nil {
 		pollingInterval = *dnsPollingInterval
 	}
-	return &plugin{client: client, resolver: resolver, dnsPollingInterval: pollingInterval}
+	newMap := make(map[string]bool)
+	mutex := sync.RWMutex{}
+	return &plugin{client: client, resolver: resolver, dnsPollingInterval: pollingInterval, upstreamHttpsMap: newMap, mapLock: mutex}
 }
 
 func (p *plugin) Init(params plugins.InitParams) error {
@@ -87,13 +97,29 @@ func (p *plugin) Init(params plugins.InitParams) error {
 }
 
 func (p *plugin) ProcessUpstream(params plugins.Params, in *v1.Upstream, out *envoyapi.Cluster) error {
-	_, ok := in.UpstreamType.(*v1.Upstream_Consul)
+	consulSpec, ok := in.UpstreamType.(*v1.Upstream_Consul)
 	if !ok {
 		return nil
 	}
+	spec := consulSpec.Consul
 
 	// consul upstreams use EDS
 	xds.SetEdsOnCluster(out)
+
+	useTls := spec.GetUseTls()
+	p.mapLock.RLock()
+	defer p.mapLock.RUnlock()
+	mapVal, isMapped := p.upstreamHttpsMap[in.Metadata.Ref().Key()]
+	if (useTls != nil && useTls.Value) || (mapVal && isMapped) {
+		// tell envoy to use TLS to connect to this upstream
+		if out.TransportSocket == nil {
+			tlsContext := &envoyauth.UpstreamTlsContext{}
+			out.TransportSocket = &envoycore.TransportSocket{
+				Name:       wellknown.TransportSocketTls,
+				ConfigType: &envoycore.TransportSocket_TypedConfig{TypedConfig: utils.MustMessageToAny(tlsContext)},
+			}
+		}
+	}
 
 	return nil
 }
