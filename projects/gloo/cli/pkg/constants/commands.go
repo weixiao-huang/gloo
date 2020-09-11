@@ -222,4 +222,9 @@ var (
 		Use:   "install",
 		Short: "Install a glooctl plugin from the official Solo.io plugin registry",
 	}
+
+	PLUGIN_UNINSTALL_COMMAND = cobra.Command{
+		Use:   "uninstall",
+		Short: "Uninstall a glooctl plugin",
+	}
 )

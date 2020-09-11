@@ -5,6 +5,7 @@ import (
 	"github.com/solo-io/gloo/projects/gloo/cli/pkg/cmd/plugin/install"
 	"github.com/solo-io/gloo/projects/gloo/cli/pkg/cmd/plugin/list"
 	"github.com/solo-io/gloo/projects/gloo/cli/pkg/cmd/plugin/search"
+	"github.com/solo-io/gloo/projects/gloo/cli/pkg/cmd/plugin/uninstall"
 	"github.com/solo-io/gloo/projects/gloo/cli/pkg/constants"
 	"github.com/solo-io/gloo/projects/gloo/cli/pkg/prerun"
 
@@ -31,6 +32,7 @@ func RootCmd(opts *options.Options, optionsFunc ...cliutils.OptionsFunc) *cobra.
 	cmd.AddCommand(list.RootCmd(opts))
 	cmd.AddCommand(search.RootCmd(opts))
 	cmd.AddCommand(install.RootCmd(opts))
+	cmd.AddCommand(uninstall.RootCmd(opts))
 
 	cliutils.ApplyOptions(cmd, optionsFunc)
 	return cmd

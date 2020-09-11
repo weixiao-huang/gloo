@@ -28,11 +28,6 @@ type installedPluginRegistry struct {
 	pluginPaths []string
 }
 
-func (r *installedPluginRegistry) Uninstall(name string) error {
-	// TODO joekelley
-	return nil
-}
-
 func NewInstalledPluginRegistry(cmd *cobra.Command) InstalledPluginRegistry {
 	r := &installedPluginRegistry{
 		verifier: &CommandOverrideVerifier{
@@ -43,6 +38,24 @@ func NewInstalledPluginRegistry(cmd *cobra.Command) InstalledPluginRegistry {
 	}
 
 	return r
+}
+
+func (r *installedPluginRegistry) Uninstall(name string) error {
+	plugins, _, err := r.ListAll()
+	if err != nil {
+		return err
+	}
+
+	for _, plugin := range plugins {
+		if plugin.Name == name {
+			if err := os.Remove(plugin.FullPath); err != nil {
+				return eris.Wrapf(err, "Failed to uninstall %s at %s", plugin.Name, plugin.FullPath)
+			}
+			return nil
+		}
+	}
+
+	return eris.Errorf("%s was not found in your PATH", name)
 }
 
 func (r *installedPluginRegistry) ListAll() (plugins []InstalledPlugin, warnings []error, err error) {
@@ -65,8 +78,11 @@ func (r *installedPluginRegistry) ListAll() (plugins []InstalledPlugin, warnings
 				continue
 			}
 
+			// TODO joekelley cleanup
+			name := strings.TrimPrefix(f.Name(), "glooctl-")
+
 			plugin := InstalledPlugin{
-				Name:     f.Name(),
+				Name:     name,
 				FullPath: filepath.Join(dir, f.Name()),
 			}
 
