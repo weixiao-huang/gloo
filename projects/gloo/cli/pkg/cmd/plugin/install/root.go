@@ -43,7 +43,7 @@ func RootCmd(opts *options.Options, optionsFunc ...cliutils.OptionsFunc) *cobra.
 				if plugin.DisplayName == desiredPlugin {
 
 					// TODO get version
-					version := "v0.0.19"
+					version := common.PluginVersion("v0.0.19")
 
 					var fileExtension string
 					if runtime.GOOS == "windows" {

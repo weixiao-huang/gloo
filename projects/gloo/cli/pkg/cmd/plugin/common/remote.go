@@ -12,46 +12,64 @@ import (
 	"google.golang.org/api/option"
 )
 
-// VersionedPlugins is a map from version to map from binary name to download url.
-type VersionedPlugins map[string]map[string]string
-
 // RegistryPlugin is a plugin made available via plugin registry.
 type RegistryPlugin struct {
 	// Name is the name of the plugin, e.g. "glooctl-fed"
 	Name string
-	// Name is the user-friendly name of the plugin, e.g. "fed"
-	DisplayName       string
+	// Display is the user-friendly name of the plugin, e.g. "fed"
+	DisplayName string
+	// AvailableVersions describes the download URL for available versions of the RegistryPlugin
 	AvailableVersions VersionedPlugins
 }
 
-// Registry represents a GcsRegsitry of glooctl plugins.
+// Registry represents a GcsRegistry of glooctl plugins.
 type Registry interface {
 	// Search returns all RegistryPlugins in the Registry with names containing the provided query string.
 	Search(ctx context.Context, query string) ([]RegistryPlugin, error)
+	// Get returns the RegistryPlugin with a name that exactly matches the provided plugin name.
+	Get(ctx context.Context, name string) (RegistryPlugin, error)
 }
 
 // GcsRegistry is a Registry implementation backed by a Google Cloud Storage bucket.
-type GcsRegsitry struct {
+type GcsRegistry struct {
 	Client       *storage.Client
 	Bucket       string
 	PluginPrefix string
 }
 
-// NewGcsRegistry returns a
-func NewGcsRegistry(ctx context.Context, bucket, pluginPrefix string) (*GcsRegsitry, error) {
+// NewGcsRegistry returns a Registry backed by a GCS bucket.
+func NewGcsRegistry(ctx context.Context, bucket, pluginPrefix string) (*GcsRegistry, error) {
 	client, err := storage.NewClient(ctx, option.WithScopes(storage.ScopeReadOnly), option.WithoutAuthentication())
 	if err != nil {
 		return nil, err
 	}
 
-	return &GcsRegsitry{
+	return &GcsRegistry{
 		Client:       client,
 		Bucket:       bucket,
 		PluginPrefix: pluginPrefix,
 	}, nil
 }
 
-func (r *GcsRegsitry) Search(ctx context.Context, query string) ([]RegistryPlugin, error) {
+func (r *GcsRegistry) Search(ctx context.Context, query string) ([]RegistryPlugin, error) {
+	return r.search(ctx, query)
+}
+
+func (r *GcsRegistry) Get(ctx context.Context, name string) (RegistryPlugin, error) {
+	list, err := r.search(ctx, name)
+	if err != nil {
+		return RegistryPlugin{}, err
+	}
+
+	for _, plugin := range list {
+		if plugin.DisplayName == name {
+			return plugin, nil
+		}
+	}
+	return RegistryPlugin{}, eris.Errorf("Plugin %s not found.", name)
+}
+
+func (r *GcsRegistry) search(ctx context.Context, query string) ([]RegistryPlugin, error) {
 	objects, err := r.listAllObjects(ctx)
 	if err != nil {
 		return nil, err
@@ -73,13 +91,15 @@ func (r *GcsRegsitry) Search(ctx context.Context, query string) ([]RegistryPlugi
 			continue
 		}
 
+		pluginVersion := PluginVersion(version)
+
 		if _, ok := foundPlugins[pluginName]; !ok {
-			foundPlugins[pluginName] = make(map[string]map[string]string)
+			foundPlugins[pluginName] = make(VersionedPlugins)
 		}
-		if _, ok := foundPlugins[pluginName][version]; !ok {
-			foundPlugins[pluginName][version] = make(map[string]string)
+		if _, ok := foundPlugins[pluginName][pluginVersion]; !ok {
+			foundPlugins[pluginName][pluginVersion] = make(map[string]string)
 		}
-		foundPlugins[pluginName][version][binaryName] = object.MediaLink
+		foundPlugins[pluginName][pluginVersion][binaryName] = object.MediaLink
 	}
 
 	for pluginName, versionedPlugins := range foundPlugins {
@@ -93,7 +113,7 @@ func (r *GcsRegsitry) Search(ctx context.Context, query string) ([]RegistryPlugi
 	return plugins, nil
 }
 
-func (r *GcsRegsitry) listAllObjects(ctx context.Context) ([]*storage.ObjectAttrs, error) {
+func (r *GcsRegistry) listAllObjects(ctx context.Context) ([]*storage.ObjectAttrs, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 

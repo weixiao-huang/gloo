@@ -34,7 +34,7 @@ func RootCmd(opts *options.Options) *cobra.Command {
 			}
 
 			if len(warnings) > 0 {
-				fmt.Println("\n\nglooctl encountered the following warnings while searching for installed plugins:")
+				fmt.Println("\nglooctl encountered the following warnings while searching for installed plugins:")
 				for _, warning := range warnings {
 					fmt.Println(warning.Error())
 				}

@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"github.com/solo-io/gloo/projects/gloo/cli/pkg/cmd/options"
+	"github.com/solo-io/gloo/projects/gloo/cli/pkg/cmd/plugin/describe"
 	"github.com/solo-io/gloo/projects/gloo/cli/pkg/cmd/plugin/install"
 	"github.com/solo-io/gloo/projects/gloo/cli/pkg/cmd/plugin/list"
 	"github.com/solo-io/gloo/projects/gloo/cli/pkg/cmd/plugin/search"
@@ -33,6 +34,7 @@ func RootCmd(opts *options.Options, optionsFunc ...cliutils.OptionsFunc) *cobra.
 	cmd.AddCommand(search.RootCmd(opts))
 	cmd.AddCommand(install.RootCmd(opts))
 	cmd.AddCommand(uninstall.RootCmd(opts))
+	cmd.AddCommand(describe.RootCmd(opts))
 
 	cliutils.ApplyOptions(cmd, optionsFunc)
 	return cmd

@@ -20,6 +20,7 @@ type InstalledPlugin struct {
 
 type InstalledPluginRegistry interface {
 	ListAll() (plugins []InstalledPlugin, warnings []error, err error)
+	Get(name string) (InstalledPlugin, error)
 	Uninstall(name string) error
 }
 
@@ -38,24 +39,6 @@ func NewInstalledPluginRegistry(cmd *cobra.Command) InstalledPluginRegistry {
 	}
 
 	return r
-}
-
-func (r *installedPluginRegistry) Uninstall(name string) error {
-	plugins, _, err := r.ListAll()
-	if err != nil {
-		return err
-	}
-
-	for _, plugin := range plugins {
-		if plugin.Name == name {
-			if err := os.Remove(plugin.FullPath); err != nil {
-				return eris.Wrapf(err, "Failed to uninstall %s at %s", plugin.Name, plugin.FullPath)
-			}
-			return nil
-		}
-	}
-
-	return eris.Errorf("%s was not found in your PATH", name)
 }
 
 func (r *installedPluginRegistry) ListAll() (plugins []InstalledPlugin, warnings []error, err error) {
@@ -97,6 +80,30 @@ func (r *installedPluginRegistry) ListAll() (plugins []InstalledPlugin, warnings
 	}
 
 	return plugins, warnings, nil
+}
+
+func (r *installedPluginRegistry) Get(name string) (InstalledPlugin, error) {
+	plugins, _, err := r.ListAll()
+	if err != nil {
+		return InstalledPlugin{}, err
+	}
+
+	for _, plugin := range plugins {
+		if plugin.Name == name {
+			return plugin, nil
+		}
+	}
+
+	return InstalledPlugin{}, eris.Errorf("%s was not found in your PATH", name)
+}
+
+func (r *installedPluginRegistry) Uninstall(name string) error {
+	plugin, err := r.Get(name)
+	if err != nil {
+		return err
+	}
+
+	return os.Remove(plugin.FullPath)
 }
 
 // pathVerifier receives a path and determines if it is valid or not

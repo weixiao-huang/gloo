@@ -34,6 +34,7 @@ require (
 	github.com/hashicorp/consul/api v1.3.0
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/hashicorp/go-uuid v1.0.2-0.20191001231223-f32f5fe8d6a8
+	github.com/hashicorp/go-version v1.1.0
 	github.com/hashicorp/vault/api v1.0.5-0.20191108163347-bdd38fca2cff
 	github.com/hinshun/vt10x v0.0.0-20180809195222-d55458df857c
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
