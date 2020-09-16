@@ -4,6 +4,7 @@ import (
 	"sort"
 
 	"github.com/hashicorp/go-version"
+	"github.com/rotisserie/eris"
 )
 
 type PluginVersion string
@@ -36,6 +37,18 @@ type PlatformDownload map[string]string
 type VersionedPlugins map[PluginVersion]PlatformDownload
 
 func (p VersionedPlugins) ListVersions() PluginVersionList {
+	return p.listDescending()
+}
+
+func (p VersionedPlugins) Latest() (PluginVersion, error) {
+	versions := p.listDescending()
+	if len(versions) > 0 {
+		return versions[0], nil
+	}
+	return "", eris.New("There are no releases for this plugin.")
+}
+
+func (p VersionedPlugins) listDescending() PluginVersionList {
 	var versions PluginVersionList
 	for version := range p {
 		versions = append(versions, version)

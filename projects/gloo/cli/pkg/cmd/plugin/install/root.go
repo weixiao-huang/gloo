@@ -39,12 +39,27 @@ func RootCmd(opts *options.Options, optionsFunc ...cliutils.OptionsFunc) *cobra.
 				return err
 			}
 
+			desiredVersion := opts.Plugin.Install.ReleaseTag
+			if desiredVersion == "" {
+				return eris.New("Please provide a release tag.")
+			}
+
 			for _, plugin := range plugins {
 				if plugin.DisplayName == desiredPlugin {
 
-					// TODO get version
-					version := common.PluginVersion("v0.0.19")
+					var version common.PluginVersion
+					if desiredVersion == "latest" {
+						version, err = plugin.AvailableVersions.Latest()
+						if err != nil {
+							return err
+						}
+					}
 
+					if plugin.AvailableVersions[version] == nil {
+						return eris.Errorf("Release %s does not exist for %s", string(version), plugin.DisplayName)
+					}
+
+					// TODO do we need this at all?
 					var fileExtension string
 					if runtime.GOOS == "windows" {
 						fileExtension = ".exe"
