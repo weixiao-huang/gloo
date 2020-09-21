@@ -170,9 +170,18 @@ var _ = Describe("Helm Test", func() {
 				})
 			})
 
-			It("Should have no duplicate resources", func() {
+			FIt("Should have no duplicate resources", func() {
 				prepareMakefileWithCleanupHooks(namespace, helmValues{})
-				resources := testManifest.SurfaceResources()
+
+				var resources []*unstructured.Unstructured
+				// This piece of work is the simplest way to directly access the unstructured resources list backing a testManifest struct
+				// without updating go-utils and adding a direct access function to the TestManifest interface.
+				// We aren't doing that because updating gloo's go-utils dependency is its own task to be addressed some other time.
+				testManifest.SelectResources(func(unstructured *unstructured.Unstructured) bool {
+					resources = append(resources, unstructured)
+					return true
+				})
+
 				for idx1, resource1 := range resources {
 					for idx2, resource2 := range resources {
 						if idx1 == idx2 {
@@ -3107,7 +3116,7 @@ func cloneMap(input map[string]string) map[string]string {
 	return ret
 }
 
-// todo is
 func constructResourceID(resource *unstructured.Unstructured) string {
-	return resource.GetNamespace() + resource.GetName() + resource.GroupVersionKind().Kind
+	//technically vulnerable to resources that have commas in their names, but that's not a big concern
+	return fmt.Sprintf("%s,%s,%s", resource.GetNamespace(), resource.GetName(), resource.GroupVersionKind().Kind)
 }
