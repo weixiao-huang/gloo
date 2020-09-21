@@ -128,6 +128,13 @@ var _ = Describe("Helm Test", func() {
 				testManifest = tm
 			}
 
+			// used for deduplication test
+			prepareMakefileWithCleanupHooks := func(namespace string, values helmValues) {
+				tm, err := rendererTestCase.renderer.RenderManifestWithCleanupHooks(namespace, values)
+				Expect(err).NotTo(HaveOccurred(), "Failed to render manifest")
+				testManifest = tm
+			}
+
 			// helper for passing a values file
 			prepareMakefileFromValuesFile := func(valuesFile string) {
 				prepareMakefile(namespace, helmValues{
@@ -161,6 +168,19 @@ var _ = Describe("Helm Test", func() {
 				}).ExpectAll(func(resource *unstructured.Unstructured) {
 					Expect(resource.GetNamespace()).NotTo(BeEmpty(), fmt.Sprintf("Resource %+v does not have a namespace", resource))
 				})
+			})
+
+			It("Should have no duplicate resources", func() {
+				prepareMakefileWithCleanupHooks(namespace, helmValues{})
+				resources := testManifest.SurfaceResources()
+				for idx1, resource1 := range resources {
+					for idx2, resource2 := range resources {
+						if idx1 == idx2 {
+							continue
+						}
+						Expect(constructResourceID(resource1)).NotTo(Equal(constructResourceID(resource2)))
+					}
+				}
 			})
 
 			Context("stats server settings", func() {
@@ -3085,4 +3105,9 @@ func cloneMap(input map[string]string) map[string]string {
 	}
 
 	return ret
+}
+
+// todo is
+func constructResourceID(resource *unstructured.Unstructured) string {
+	return resource.GetNamespace() + resource.GetName() + resource.GroupVersionKind().Kind
 }

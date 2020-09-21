@@ -105,6 +105,8 @@ type helmValues struct {
 type ChartRenderer interface {
 	// returns a TestManifest containing all resources NOT marked by our hook-cleanup annotation
 	RenderManifest(namespace string, values helmValues) (TestManifest, error)
+	// returns an unscrubbed TestManifest for no-duplication verification testing
+	RenderManifestWithCleanupHooks(namespace string, values helmValues) (TestManifest, error)
 }
 
 var _ ChartRenderer = &helm3Renderer{}
@@ -115,6 +117,16 @@ type helm3Renderer struct {
 }
 
 func (h3 helm3Renderer) RenderManifest(namespace string, values helmValues) (TestManifest, error) {
+	return h3.RenderManifestHelm3(namespace, values, false)
+}
+
+func (h3 helm3Renderer) RenderManifestWithCleanupHooks(namespace string, values helmValues) (TestManifest, error) {
+	return h3.RenderManifestHelm3(namespace, values, true)
+}
+
+// the above two functions are identical save for the all to helm.GetHooks(true/false)
+// This abstraction reflects that.
+func (h3 helm3Renderer) RenderManifestHelm3(namespace string, values helmValues, includeCleanupHooks bool) (TestManifest, error) {
 	rel, err := BuildHelm3Release(h3.chartDir, namespace, values)
 	if err != nil {
 		return nil, err
@@ -128,12 +140,11 @@ func (h3 helm3Renderer) RenderManifest(namespace string, values helmValues) (Tes
 	_, err = f.Write([]byte(rel.Manifest))
 	Expect(err).NotTo(HaveOccurred(), "Should be able to write the release manifest to the temp file for the helm unit tests")
 
-	// also need to add in the hooks, which are not included in the release manifest
-	// be sure to skip the resources that we duplicate because of Helm hook weirdness (see the comment on install.GetNonCleanupHooks)
-	nonCleanupHooks, err := helm.GetNonCleanupHooks(rel.Hooks)
+	hooks, err := helm.GetHooks(rel.Hooks, includeCleanupHooks)
+
 	Expect(err).NotTo(HaveOccurred(), "Should be able to get the non-cleanup hooks in the helm unit test setup")
 
-	for _, hook := range nonCleanupHooks {
+	for _, hook := range hooks {
 		manifest := hook.Manifest
 		_, err = f.Write([]byte("\n---\n" + manifest))
 		Expect(err).NotTo(HaveOccurred(), "Should be able to write the hook manifest to the temp file for the helm unit tests")
@@ -204,6 +215,11 @@ func (h2 helm2Renderer) RenderManifest(namespace string, values helmValues) (Tes
 	}
 
 	return NewTestManifest(f.Name()), nil
+}
+
+// help 2 doesn't have dup issues; this is just here to implement the interface
+func (h2 helm2Renderer) RenderManifestWithCleanupHooks(namespace string, values helmValues) (TestManifest, error) {
+	return h2.RenderManifest(namespace, values)
 }
 
 // each entry in valuesArgs should look like `path.to.helm.field=value`

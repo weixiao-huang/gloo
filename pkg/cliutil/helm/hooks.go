@@ -11,8 +11,10 @@ import (
 
 // Some resources are duplicated because of weirdness with Helm hooks.
 // A job needs a service account/rbac resources, and we would like those to be cleaned up after the job is complete
-// this isn't really expressible cleanly through Helm hooks.
-func GetNonCleanupHooks(hooks []*release.Hook) (results []*release.Hook, err error) {
+// this isn't really expressible cleanly through Helm hooks, so we make it possible to exclude cleanup hooks
+// through this function's input flag.
+// Unless you're testing something, you usually want to input includeCleanupHooks=false.
+func GetHooks(hooks []*release.Hook, includeCleanupHooks bool) (results []*release.Hook, err error) {
 	for _, hook := range hooks {
 		// Parse the resource in order to access the annotations
 		var resource struct{ Metadata v1.ObjectMeta }
@@ -20,10 +22,12 @@ func GetNonCleanupHooks(hooks []*release.Hook) (results []*release.Hook, err err
 			return nil, eris.Wrapf(err, "parsing resource: %s", hook.Manifest)
 		}
 
-		// Skip hook cleanup resources
-		if annotations := resource.Metadata.Annotations; len(annotations) > 0 {
-			if _, ok := annotations[constants.HookCleanupResourceAnnotation]; ok {
-				continue
+		if !includeCleanupHooks {
+			// Skip hook cleanup resources
+			if annotations := resource.Metadata.Annotations; len(annotations) > 0 {
+				if _, ok := annotations[constants.HookCleanupResourceAnnotation]; ok {
+					continue
+				}
 			}
 		}
 
