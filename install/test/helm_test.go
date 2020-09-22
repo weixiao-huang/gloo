@@ -170,7 +170,7 @@ var _ = Describe("Helm Test", func() {
 				})
 			})
 
-			FIt("Should have no duplicate resources", func() {
+			It("Should have no duplicate resources", func() {
 				prepareMakefileWithCleanupHooks(namespace, helmValues{})
 
 				var resources []*unstructured.Unstructured
