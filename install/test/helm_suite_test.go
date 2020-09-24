@@ -114,7 +114,8 @@ type helm3Renderer struct {
 	chartDir string
 }
 
-func (h3 helm3Renderer) RenderManifest(namespace string, values helmValues) (TestManifest, error) {rel, err := BuildHelm3Release(h3.chartDir, namespace, values)
+func (h3 helm3Renderer) RenderManifest(namespace string, values helmValues) (TestManifest, error) {
+	rel, err := BuildHelm3Release(h3.chartDir, namespace, values)
 	if err != nil {
 		return nil, err
 	}
