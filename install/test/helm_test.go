@@ -130,7 +130,7 @@ var _ = Describe("Helm Test", func() {
 
 			// used for deduplication test
 			prepareMakefileWithCleanupHooks := func(namespace string, values helmValues) {
-				tm, err := rendererTestCase.renderer.RenderManifestWithCleanupHooks(namespace, values)
+				tm, err := rendererTestCase.renderer.RenderManifest(namespace, values)
 				Expect(err).NotTo(HaveOccurred(), "Failed to render manifest")
 				testManifest = tm
 			}
