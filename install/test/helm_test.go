@@ -128,13 +128,6 @@ var _ = Describe("Helm Test", func() {
 				testManifest = tm
 			}
 
-			// used for deduplication test
-			prepareMakefileWithCleanupHooks := func(namespace string, values helmValues) {
-				tm, err := rendererTestCase.renderer.RenderManifest(namespace, values)
-				Expect(err).NotTo(HaveOccurred(), "Failed to render manifest")
-				testManifest = tm
-			}
-
 			// helper for passing a values file
 			prepareMakefileFromValuesFile := func(valuesFile string) {
 				prepareMakefile(namespace, helmValues{
@@ -171,7 +164,7 @@ var _ = Describe("Helm Test", func() {
 			})
 
 			It("Should have no duplicate resources", func() {
-				prepareMakefileWithCleanupHooks(namespace, helmValues{})
+				prepareMakefile(namespace, helmValues{})
 
 				var resources []*unstructured.Unstructured
 				// This piece of work is the simplest way to directly access the unstructured resources list backing a testManifest struct
@@ -3118,5 +3111,5 @@ func cloneMap(input map[string]string) map[string]string {
 
 func constructResourceID(resource *unstructured.Unstructured) string {
 	//technically vulnerable to resources that have commas in their names, but that's not a big concern
-	return fmt.Sprintf("%s,%s,%s", resource.GetNamespace(), resource.GetName(), resource.GroupVersionKind().Kind)
+	return fmt.Sprintf("%s,%s,%s", resource.GetNamespace(), resource.GetName(), resource.GroupVersionKind().String())
 }
