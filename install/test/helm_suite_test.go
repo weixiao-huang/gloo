@@ -130,7 +130,7 @@ func (h3 helm3Renderer) RenderManifest(namespace string, values helmValues) (Tes
 
 	hooks, err := helm.GetHooks(rel.Hooks)
 
-	Expect(err).NotTo(HaveOccurred(), "Should be able to get the non-cleanup hooks in the helm unit test setup")
+	Expect(err).NotTo(HaveOccurred(), "Should be able to get the hooks in the helm unit test setup")
 
 	for _, hook := range hooks {
 		manifest := hook.Manifest
