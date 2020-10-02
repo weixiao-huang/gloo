@@ -1,7 +1,7 @@
 #!/bin/bash
 
 cd ../
-git clone https://github.com/solo-io/solo-apis.git
+git clone https://solo-io:$GITHUB_TOKEN@github.com/solo-io/solo-apis.git
 cd solo-apis
 git config --global user.email "bot@soloio.com"
 git config --global user.name "Gloo Github Action"
