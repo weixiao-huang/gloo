@@ -10,5 +10,5 @@ touch test-file
 git checkout -b update-solo-apis
 git add .
 git commit -m "update to latest gloo version" -q --allow-empty
-git push -u origin master
+git push --set-upstream origin update-solo-apis
 git commit --amend --reset-author
