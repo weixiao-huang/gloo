@@ -24,6 +24,6 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - name: Generate Code
+      - name: Update solo-apis
         run: |
           ./ci/update-solo-apis.sh
