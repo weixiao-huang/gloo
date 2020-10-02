@@ -1,0 +1,29 @@
+name: release
+
+#on:
+#  release:
+#    types: [created]
+on: pull_request
+
+jobs:
+  update-solo-apis:
+    name: update solo-apis repository
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Cancel Previous Actions
+        uses: styfle/cancel-workflow-action@0.4.1
+        with:
+          access_token: ${{ github.token }}
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/cache@v1
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Generate Code
+        run: |
+          ./ci/update-solo-apis.sh
