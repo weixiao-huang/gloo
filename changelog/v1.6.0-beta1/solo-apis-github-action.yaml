@@ -1,0 +1,5 @@
+changelog:
+  - type: NON_USER_FACING
+    issueLink: https://github.com/solo-io/gloo/issues/3518
+    description: >
+      Update the solo-apis repository whenever there is a proto change.
