@@ -440,9 +440,12 @@ message GlooOptions {
     // defaults to 100.
     google.protobuf.UInt32Value regex_max_program_size = 10;
 
-    // (Enterprise Only): Where the `gloo` REST xDS server should bind. Used by Gloo Federation.
+    // Where the `gloo` REST xDS server should bind.
     // Defaults to `0.0.0.0:9976`
     string rest_xds_bind_addr = 11;
+
+    // Whether or not to use rest xds for all EDS by default
+    bool enable_rest_xds = 12;
 }
 
 // Settings specific to the Gateway controller
