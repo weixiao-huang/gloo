@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/gogo/protobuf/types"
 	gatewaydefaults "github.com/solo-io/gloo/projects/gateway/pkg/defaults"
 
 	errors "github.com/rotisserie/eris"
@@ -38,11 +38,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	kubecore "k8s.io/kubernetes/pkg/apis/core"
-	"k8s.io/kubernetes/pkg/apis/core/validation"
 )
 
-var _ = Describe("Happy path", func() {
+var _ = FDescribe("Rest Eds", func() {
 
 	var (
 		ctx           context.Context
@@ -77,14 +75,6 @@ var _ = Describe("Happy path", func() {
 		v1helpers.TestUpstreamReachable(envoyPort, tu, nil)
 	}
 
-	Describe("rest-eds", func() {
-
-	})
-
-	Describe("sotw-eds", func() {
-
-	})
-
 	Describe("in memory", func() {
 
 		var up *gloov1.Upstream
@@ -92,6 +82,13 @@ var _ = Describe("Happy path", func() {
 		BeforeEach(func() {
 			ns := defaults.GlooSystem
 			ro := &services.RunOptions{
+				Settings: &gloov1.Settings{
+					Gloo: &gloov1.GlooOptions{
+						EnableRestEds: &types.BoolValue{
+							Value: true,
+						},
+					},
+				},
 				NsToWrite: ns,
 				NsToWatch: []string{"default", ns},
 				WhatToRun: services.What{
@@ -478,124 +475,3 @@ var _ = Describe("Happy path", func() {
 		})
 	})
 })
-
-func getTrivialProxyForUpstream(ns string, bindPort uint32, upstream core.ResourceRef) *gloov1.Proxy {
-	proxy := getTrivialProxy(ns, bindPort)
-	proxy.Listeners[0].ListenerType.(*gloov1.Listener_HttpListener).HttpListener.
-		VirtualHosts[0].Routes[0].Action.(*gloov1.Route_RouteAction).RouteAction.
-		Destination.(*gloov1.RouteAction_Single).Single.DestinationType =
-		&gloov1.Destination_Upstream{Upstream: &upstream}
-	return proxy
-}
-
-func getTrivialProxyForService(ns string, bindPort uint32, service core.ResourceRef, svcPort uint32) *gloov1.Proxy {
-	proxy := getTrivialProxy(ns, bindPort)
-	proxy.Listeners[0].ListenerType.(*gloov1.Listener_HttpListener).HttpListener.
-		VirtualHosts[0].Routes[0].Action.(*gloov1.Route_RouteAction).RouteAction.
-		Destination.(*gloov1.RouteAction_Single).Single.DestinationType =
-		&gloov1.Destination_Kube{
-			Kube: &gloov1.KubernetesServiceDestination{
-				Ref:  service,
-				Port: svcPort,
-			},
-		}
-	return proxy
-}
-
-func getTrivialProxy(ns string, bindPort uint32) *gloov1.Proxy {
-	return &gloov1.Proxy{
-		Metadata: core.Metadata{
-			Name:      gatewaydefaults.GatewayProxyName,
-			Namespace: ns,
-		},
-		Listeners: []*gloov1.Listener{{
-			Name:        "listener",
-			BindAddress: "::",
-			BindPort:    bindPort,
-			ListenerType: &gloov1.Listener_HttpListener{
-				HttpListener: &gloov1.HttpListener{
-					VirtualHosts: []*gloov1.VirtualHost{{
-						Name:    "virt1",
-						Domains: []string{"*"},
-						Routes: []*gloov1.Route{{
-							Action: &gloov1.Route_RouteAction{
-								RouteAction: &gloov1.RouteAction{
-									Destination: &gloov1.RouteAction_Single{
-										Single: &gloov1.Destination{},
-									},
-								},
-							},
-						}},
-					}},
-				},
-			},
-		}},
-	}
-}
-
-func getIpThatsNotLocalhost(instance *services.EnvoyInstance) string {
-	// kubernetes endpoints doesn't like localhost, so we just give it some other local address
-	// from: k8s.io/kubernetes/pkg/apis/core/validation/validation.go
-	/*
-		func validateNonSpecialIP(ipAddress string, fldPath *field.Path) field.ErrorList {
-		        // We disallow some IPs as endpoints or external-ips.  Specifically,
-		        // unspecified and loopback addresses are nonsensical and link-local
-		        // addresses tend to be used for node-centric purposes (e.g. metadata
-		        // service).
-	*/
-
-	if instance.UseDocker {
-		return instance.LocalAddr()
-	}
-
-	ifaces, err := net.Interfaces()
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
-	for _, iface := range ifaces {
-		if iface.Flags&net.FlagLoopback != 0 {
-			continue
-		}
-		addrs, err := iface.Addrs()
-		if err != nil {
-			continue
-		}
-		for _, addr := range addrs {
-			var ip net.IP
-			switch v := addr.(type) {
-			case *net.IPNet:
-				ip = v.IP
-			case *net.IPAddr:
-				ip = v.IP
-			default:
-				continue
-			}
-
-			// make sure that kubernetes like this endpoint:
-			endpoints := &kubecore.Endpoints{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "validate",
-					Name:      "validate",
-				},
-				Subsets: []kubecore.EndpointSubset{{
-					Addresses: []kubecore.EndpointAddress{{
-						IP:       ip.String(),
-						Hostname: "localhost",
-					}},
-					Ports: []kubecore.EndpointPort{{
-						Port:     int32(5555),
-						Protocol: kubecore.ProtocolTCP,
-					}},
-				}},
-			}
-
-			errs := validation.ValidateEndpoints(endpoints)
-			if len(errs) != 0 {
-				continue
-			}
-
-			return ip.String()
-		}
-	}
-	Fail("no ip address available", 1)
-	return ""
-}
