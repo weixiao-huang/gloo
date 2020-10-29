@@ -112,21 +112,24 @@ func RunGlooGatewayUdsFds(ctx context.Context, runOptions *RunOptions) TestClien
 		runOptions.Cache = memory.NewInMemoryResourceCache()
 	}
 
-	settings := &gloov1.Settings{
-		WatchNamespaces:    runOptions.NsToWatch,
-		DiscoveryNamespace: runOptions.NsToWrite,
+	if runOptions.Settings == nil {
+		runOptions.Settings = &gloov1.Settings{
+			WatchNamespaces:    runOptions.NsToWatch,
+			DiscoveryNamespace: runOptions.NsToWrite,
+		}
 	}
-	ctx = settingsutil.WithSettings(ctx, settings)
+
+	ctx = settingsutil.WithSettings(ctx, runOptions.Settings)
 
 	glooOpts := defaultGlooOpts(ctx, runOptions)
 
 	glooOpts.ControlPlane.BindAddr.(*net.TCPAddr).Port = int(runOptions.GlooPort)
 	glooOpts.ValidationServer.BindAddr.(*net.TCPAddr).Port = int(runOptions.ValidationPort)
 
-	glooOpts.Settings = runOptions.Settings
-	if glooOpts.Settings == nil {
-		glooOpts.Settings = &gloov1.Settings{}
-	}
+	// glooOpts.Settings = runOptions.Settings
+	// if glooOpts.Settings == nil {
+	// 	glooOpts.Settings = &gloov1.Settings{}
+	// }
 
 	glooOpts.ControlPlane.StartGrpcServer = true
 	glooOpts.ValidationServer.StartGrpcServer = true
@@ -241,6 +244,7 @@ func defaultGlooOpts(ctx context.Context, runOptions *RunOptions) bootstrap.Opts
 	}
 
 	return bootstrap.Opts{
+		Settings:          runOptions.Settings,
 		WriteNamespace:    runOptions.NsToWrite,
 		Upstreams:         f,
 		UpstreamGroups:    f,
