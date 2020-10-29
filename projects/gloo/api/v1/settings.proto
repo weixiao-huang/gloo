@@ -445,7 +445,7 @@ message GlooOptions {
     string rest_xds_bind_addr = 11;
 
     // Whether or not to use rest xds for all EDS by default
-    bool enable_rest_xds = 12;
+    google.protobuf.BoolValue enable_rest_eds = 12;
 }
 
 // Settings specific to the Gateway controller
