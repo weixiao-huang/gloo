@@ -123,28 +123,31 @@ func (p *plugin) ProcessUpstream(params plugins.Params, in *v1.Upstream, out *en
 		// tell envoy to use TLS to connect to this upstream
 		// TODO: support client certificates
 		if out.TransportSocket == nil {
-			transportSocket := func(snihostname string) *envoycore.TransportSocket {
-				tlsContext := &envoyauth.UpstreamTlsContext{
-					// TODO(yuval-k): Add verification context
-					Sni: snihostname,
-				}
-				return &envoycore.TransportSocket{
-					Name:       wellknown.TransportSocketTls,
-					ConfigType: &envoycore.TransportSocket_TypedConfig{TypedConfig: utils.MustMessageToAny(tlsContext)},
-				}
+			tlsContext := &envoyauth.UpstreamTlsContext{
+				// TODO(yuval-k): Add verification context
+				Sni: hostname,
 			}
-			out.TransportSocket = transportSocket(hostname)
-			for _, host := range spec.Hosts {
-				sniname := host.SniAddr
-				if sniname == "" {
-					continue
-				}
-				out.TransportSocketMatches = append(out.TransportSocketMatches, &envoyapi.Cluster_TransportSocketMatch{
-					Name:            name(host),
-					Match:           metadataMatch(host),
-					TransportSocket: transportSocket(sniname),
-				})
+			out.TransportSocket = &envoycore.TransportSocket{
+				Name:       wellknown.TransportSocketTls,
+				ConfigType: &envoycore.TransportSocket_TypedConfig{TypedConfig: utils.MustMessageToAny(tlsContext)},
 			}
+		}
+	}
+	if out.TransportSocket != nil {
+		for _, host := range spec.Hosts {
+			sniname := host.SniAddr
+			if sniname == "" {
+				continue
+			}
+			ts, err := mutateSni(out.TransportSocket, sniname)
+			if err != nil {
+				return err
+			}
+			out.TransportSocketMatches = append(out.TransportSocketMatches, &envoyapi.Cluster_TransportSocketMatch{
+				Name:            name(host),
+				Match:           metadataMatch(host),
+				TransportSocket: ts,
+			})
 		}
 	}
 
@@ -160,6 +163,25 @@ func (p *plugin) ProcessUpstream(params plugins.Params, in *v1.Upstream, out *en
 	}
 
 	return nil
+}
+func mutateSni(in *envoycore.TransportSocket, sni string) (*envoycore.TransportSocket, error) {
+	copy := *in
+
+	// copy the sni
+	cfg, err := utils.AnyToMessage(copy.GetTypedConfig())
+	if err != nil {
+		return nil, err
+	}
+
+	typedCfg, ok := cfg.(*envoyauth.UpstreamTlsContext)
+	if !ok {
+		return nil, errors.Errorf("unknown tls config")
+	}
+	typedCfg.Sni = sni
+
+	copy.ConfigType = &envoycore.TransportSocket_TypedConfig{TypedConfig: utils.MustMessageToAny(typedCfg)}
+
+	return &copy, nil
 }
 
 func getMetadata(in *v1static.Host) *envoycore.Metadata {
@@ -193,7 +215,7 @@ func getMetadata(in *v1static.Host) *envoycore.Metadata {
 }
 
 func name(in *v1static.Host) string {
-	return fmt.Sprint("%s;%s:%d", in.SniAddr, in.Addr, in.Port)
+	return fmt.Sprintf("%s;%s:%d", in.SniAddr, in.Addr, in.Port)
 }
 
 func metadataMatch(in *v1static.Host) *pbgostruct.Struct {

@@ -21,6 +21,7 @@ func (p *Plugin) Init(params plugins.InitParams) error {
 
 func (p *Plugin) ProcessUpstream(params plugins.Params, in *v1.Upstream, out *envoyapi.Cluster) error {
 	// not ours
+	return nil
 	sslConfig := in.SslConfig
 	if sslConfig == nil {
 		return nil

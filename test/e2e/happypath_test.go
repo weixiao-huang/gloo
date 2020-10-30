@@ -2,6 +2,7 @@ package e2e_test
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -205,10 +206,12 @@ var _ = Describe("Happy path", func() {
 		})
 
 		Context("ssl", func() {
-			var upSsl *gloov1.Upstream
-
+			var (
+				upSsl  *gloov1.Upstream
+				hellos chan string
+			)
 			BeforeEach(func() {
-
+				hellos = make(chan string, 100)
 				sslSecret := &gloov1.Secret{
 					Metadata: core.Metadata{
 						Name:      "secret",
@@ -227,7 +230,9 @@ var _ = Describe("Happy path", func() {
 				copyUp.Metadata.Name = copyUp.Metadata.Name + "-ssl"
 				port := tu.Upstream.UpstreamType.(*gloov1.Upstream_Static).Static.Hosts[0].Port
 				addr := tu.Upstream.UpstreamType.(*gloov1.Upstream_Static).Static.Hosts[0].Addr
-				sslport := v1helpers.StartSslProxy(ctx, port)
+				sslport := v1helpers.StartSslProxyWithHelloCB(ctx, port, func(chi *tls.ClientHelloInfo) {
+					hellos <- chi.ServerName
+				})
 				ref := sslSecret.Metadata.Ref()
 
 				copyUp.UpstreamType = &gloov1.Upstream_Static{
@@ -244,17 +249,38 @@ var _ = Describe("Happy path", func() {
 					},
 				}
 				upSsl = &copyUp
-				_, err = testClients.UpstreamClient.Write(upSsl, clients.WriteOpts{})
-				Expect(err).NotTo(HaveOccurred())
 			})
 
-			It("should work with ssl", func() {
-				proxycli := testClients.ProxyClient
-				proxy := getTrivialProxyForUpstream(defaults.GlooSystem, envoyPort, upSsl.Metadata.Ref())
-				_, err := proxycli.Write(proxy, clients.WriteOpts{})
-				Expect(err).NotTo(HaveOccurred())
+			Context("simple ssl", func() {
+				BeforeEach(func() {
+					_, err := testClients.UpstreamClient.Write(upSsl, clients.WriteOpts{})
+					Expect(err).NotTo(HaveOccurred())
+				})
+				It("should work with ssl", func() {
+					proxycli := testClients.ProxyClient
+					proxy := getTrivialProxyForUpstream(defaults.GlooSystem, envoyPort, upSsl.Metadata.Ref())
+					_, err := proxycli.Write(proxy, clients.WriteOpts{})
+					Expect(err).NotTo(HaveOccurred())
 
-				TestUpstreamReachable()
+					TestUpstreamReachable()
+				})
+			})
+
+			FContext("sni", func() {
+				BeforeEach(func() {
+					upSsl.GetStatic().GetHosts()[0].SniAddr = "solo-sni-test"
+					_, err := testClients.UpstreamClient.Write(upSsl, clients.WriteOpts{})
+					Expect(err).NotTo(HaveOccurred())
+				})
+				It("should work with ssl", func() {
+					proxycli := testClients.ProxyClient
+					proxy := getTrivialProxyForUpstream(defaults.GlooSystem, envoyPort, upSsl.Metadata.Ref())
+					_, err := proxycli.Write(proxy, clients.WriteOpts{})
+					Expect(err).NotTo(HaveOccurred())
+
+					TestUpstreamReachable()
+					Eventually(hellos).Should(Receive(Equal("solo-sni-test")))
+				})
 			})
 		})
 
