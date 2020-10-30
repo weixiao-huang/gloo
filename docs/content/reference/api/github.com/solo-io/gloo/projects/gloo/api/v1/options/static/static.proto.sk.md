@@ -58,6 +58,7 @@ Represents a single instance of an upstream
 ```yaml
 "addr": string
 "port": int
+"sniAddr": string
 "healthCheckConfig": .static.options.gloo.solo.io.Host.HealthCheckConfig
 
 ```
@@ -66,6 +67,7 @@ Represents a single instance of an upstream
 | ----- | ---- | ----------- |----------- | 
 | `addr` | `string` | Address (hostname or IP). |  |
 | `port` | `int` | Port the instance is listening on. |  |
+| `sniAddr` | `string` | Address to use for SNI if using ssl. |  |
 | `healthCheckConfig` | [.static.options.gloo.solo.io.Host.HealthCheckConfig](../static.proto.sk/#healthcheckconfig) | (Enterprise Only): Host specific health checking configuration. |  |
 
 

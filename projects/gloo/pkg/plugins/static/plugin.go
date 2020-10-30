@@ -22,6 +22,8 @@ import (
 )
 
 const (
+	TransportSocketMatchKey = "envoy.transport_socket_match"
+
 	HttpPathCheckerName = "io.solo.health_checkers.http_path"
 	PathFieldName       = "path"
 )
@@ -111,6 +113,9 @@ func (p *plugin) ProcessUpstream(params plugins.Params, in *v1.Upstream, out *en
 					},
 				},
 			})
+
+		// does the cluster have ssl configured
+
 	}
 
 	// if host port is 443 or if the user wants it, we will use TLS
@@ -118,13 +123,27 @@ func (p *plugin) ProcessUpstream(params plugins.Params, in *v1.Upstream, out *en
 		// tell envoy to use TLS to connect to this upstream
 		// TODO: support client certificates
 		if out.TransportSocket == nil {
-			tlsContext := &envoyauth.UpstreamTlsContext{
-				// TODO(yuval-k): Add verification context
-				Sni: hostname,
+			transportSocket := func(snihostname string) *envoycore.TransportSocket {
+				tlsContext := &envoyauth.UpstreamTlsContext{
+					// TODO(yuval-k): Add verification context
+					Sni: snihostname,
+				}
+				return &envoycore.TransportSocket{
+					Name:       wellknown.TransportSocketTls,
+					ConfigType: &envoycore.TransportSocket_TypedConfig{TypedConfig: utils.MustMessageToAny(tlsContext)},
+				}
 			}
-			out.TransportSocket = &envoycore.TransportSocket{
-				Name:       wellknown.TransportSocketTls,
-				ConfigType: &envoycore.TransportSocket_TypedConfig{TypedConfig: utils.MustMessageToAny(tlsContext)},
+			out.TransportSocket = transportSocket(hostname)
+			for _, host := range spec.Hosts {
+				sniname := host.SniAddr
+				if sniname == "" {
+					continue
+				}
+				out.TransportSocketMatches = append(out.TransportSocketMatches, &envoyapi.Cluster_TransportSocketMatch{
+					Name:            name(host),
+					Match:           metadataMatch(host),
+					TransportSocket: transportSocket(sniname),
+				})
 			}
 		}
 	}
@@ -147,20 +166,44 @@ func getMetadata(in *v1static.Host) *envoycore.Metadata {
 	if in == nil {
 		return nil
 	}
+	var meta *envoycore.Metadata
+	if in.SniAddr != "" {
+		if meta == nil {
+			meta = &envoycore.Metadata{FilterMetadata: map[string]*pbgostruct.Struct{}}
+		}
+		meta.FilterMetadata[TransportSocketMatchKey] = metadataMatch(in)
+	}
+
 	if in.GetHealthCheckConfig().GetPath() != "" {
-		return &envoycore.Metadata{
-			FilterMetadata: map[string]*pbgostruct.Struct{
-				HttpPathCheckerName: {
-					Fields: map[string]*pbgostruct.Value{
-						PathFieldName: {
-							Kind: &pbgostruct.Value_StringValue{
-								StringValue: in.GetHealthCheckConfig().GetPath(),
-							},
-						},
+		if meta == nil {
+			meta = &envoycore.Metadata{FilterMetadata: map[string]*pbgostruct.Struct{}}
+		}
+		meta.FilterMetadata[HttpPathCheckerName] = &pbgostruct.Struct{
+			Fields: map[string]*pbgostruct.Value{
+				PathFieldName: {
+					Kind: &pbgostruct.Value_StringValue{
+						StringValue: in.GetHealthCheckConfig().GetPath(),
 					},
 				},
 			},
 		}
+
 	}
-	return nil
+	return meta
+}
+
+func name(in *v1static.Host) string {
+	return fmt.Sprint("%s;%s:%d", in.SniAddr, in.Addr, in.Port)
+}
+
+func metadataMatch(in *v1static.Host) *pbgostruct.Struct {
+	return &pbgostruct.Struct{
+		Fields: map[string]*pbgostruct.Value{
+			name(in): {
+				Kind: &pbgostruct.Value_BoolValue{
+					BoolValue: true,
+				},
+			},
+		},
+	}
 }
