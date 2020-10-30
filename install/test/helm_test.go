@@ -923,13 +923,20 @@ spec:
 
 				Context("default gateways", func() {
 
-					//It("does not render when gatewayProxy is disabled", func() {
-					//	prepareMakefile(namespace, helmValues{
-					//		valuesArgs: []string{"gatewayProxies.gatewayProxy.disabled=true"},
-					//	})
-					//	gatewayUnstructured := testManifest.ExpectCustomResource("Gateway", namespace, defaults.GatewayProxyName)
-					//	print(gatewayUnstructured)
-					//})
+					It("does not render when gatewayProxy is disabled", func() {
+						prepareMakefile(namespace, helmValues{})
+						testManifest.ExpectCustomResource("Gateway", namespace, defaults.GatewayProxyName)
+
+						prepareMakefile(namespace, helmValues{
+							valuesArgs: []string{"gatewayProxies.gatewayProxy.disabled=false"},
+						})
+						testManifest.ExpectCustomResource("Gateway", namespace, defaults.GatewayProxyName)
+
+						prepareMakefile(namespace, helmValues{
+							valuesArgs: []string{"gatewayProxies.gatewayProxy.disabled=true"},
+						})
+						testManifest.Expect("Gateway", namespace, defaults.GatewayProxyName).To(BeNil())
+					})
 
 					var (
 						proxyNames = []string{defaults.GatewayProxyName}
