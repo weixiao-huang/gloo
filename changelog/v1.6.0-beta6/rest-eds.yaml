@@ -14,4 +14,4 @@ changelog:
   - type: NEW_FEATURE
     issueLink: https://github.com/solo-io/gloo/issues/3805
     description: >-
-      Allow toggling of EDS to rest XDS to avoid the envoy issue described in the following issue: https://github.com/envoyproxy/envoy/issues/13070
+      Allow toggling of EDS to rest XDS to avoid the envoy issue described in the following issue: https://github.com/envoyproxy/envoy/issues/13070.
