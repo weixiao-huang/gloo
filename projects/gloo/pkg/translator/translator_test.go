@@ -1737,7 +1737,7 @@ var _ = Describe("Translator", func() {
 			Expect(clusterSpec).To(Equal("test_gloo-system"))
 		})
 	})
-	FContext("Ssl - cluster", func() {
+	Context("Ssl - cluster", func() {
 
 		var (
 			tlsConf *v1.TlsSecret

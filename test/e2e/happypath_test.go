@@ -266,7 +266,7 @@ var _ = Describe("Happy path", func() {
 				})
 			})
 
-			FContext("sni", func() {
+			Context("sni", func() {
 				BeforeEach(func() {
 					upSsl.GetStatic().GetHosts()[0].SniAddr = "solo-sni-test"
 					_, err := testClients.UpstreamClient.Write(upSsl, clients.WriteOpts{})
