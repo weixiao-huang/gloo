@@ -185,5 +185,34 @@ var _ = Describe("Plugin", func() {
 			p.ProcessUpstream(params, upstream, out)
 			Expect(tlsContext()).To(Equal(existing))
 		})
+
+		It("should have sni per host", func() {
+			upstreamSpec.UseTls = true
+			upstreamSpec.Hosts[0].SniAddr = "test"
+			upstreamSpec.Hosts = append(upstreamSpec.Hosts, &v1static.Host{
+				Addr:    "1.2.3.5",
+				Port:    1234,
+				SniAddr: "test2",
+			}, &v1static.Host{
+				// add a host with no sni to see that it doesn't get translated
+				Addr: "1.2.3.6",
+				Port: 1234,
+			})
+
+			p.ProcessUpstream(params, upstream, out)
+			Expect(tlsContext()).ToNot(BeNil())
+
+			Expect(out.TransportSocketMatches).To(HaveLen(2))
+			match := utils.MustAnyToMessage(out.TransportSocketMatches[0].TransportSocket.GetTypedConfig()).(*envoyauth.UpstreamTlsContext)
+			Expect(match.Sni).To(Equal("test"))
+
+			// make sure sni match the transport sockers
+			Expect(out.TransportSocketMatches[0].Match).To(BeEquivalentTo(out.LoadAssignment.Endpoints[0].LbEndpoints[0].Metadata.FilterMetadata[TransportSocketMatchKey]))
+			Expect(out.TransportSocketMatches[1].Match).To(BeEquivalentTo(out.LoadAssignment.Endpoints[0].LbEndpoints[1].Metadata.FilterMetadata[TransportSocketMatchKey]))
+			// make sure 0 & 1 are different
+			Expect(out.TransportSocketMatches[0].Match).NotTo(BeEquivalentTo(out.TransportSocketMatches[1].Match))
+			Expect(out.TransportSocketMatches[0].Name).NotTo(Equal(out.TransportSocketMatches[1].Name))
+		})
+
 	})
 })
