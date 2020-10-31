@@ -150,6 +150,10 @@ message HttpService {
     // Note that coexistent headers will be overridden.
     repeated string allowed_upstream_headers = 1;
 
+    // When this is set, authorization response headers that have a correspondent match will be added to the client's response.
+    // Note that coexistent headers will be appended.
+    repeated string allowed_upstream_headers_to_append = 3;
+
     // When this. is set, authorization response headers that will be added to the client's response when auth request is denied.
     // Note that when this list is *not* set, all the authorization response headers, except *Authority
     // (Host)* will be in the response to the client. When a header is included in this list, *Path*,
