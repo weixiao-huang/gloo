@@ -13,7 +13,7 @@ require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/elazarl/goproxy v0.0.0-20190711103511-473e67f1d7d2 // indirect
 	github.com/elazarl/goproxy/ext v0.0.0-20190711103511-473e67f1d7d2 // indirect
-	github.com/envoyproxy/go-control-plane v0.9.6-0.20200529035633-fc42e08917e9
+	github.com/envoyproxy/go-control-plane v0.9.6-0.20200622162421-8d76a6f21925
 	github.com/envoyproxy/protoc-gen-validate v0.4.0
 	github.com/fgrosse/zaptest v1.1.0
 	github.com/fsnotify/fsnotify v1.4.9
@@ -107,7 +107,7 @@ replace (
 	github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.4.2
 	github.com/docker/docker => github.com/moby/moby v0.7.3-0.20190826074503-38ab9da00309
 	github.com/golang/mock => github.com/golang/mock v1.4.3
-	github.com/golang/protobuf => github.com/golang/protobuf v1.3.5
+	github.com/golang/protobuf => github.com/golang/protobuf v1.4.1
 	github.com/spf13/cobra => github.com/spf13/cobra v0.0.5 // override wasme requirement
 	google.golang.org/genproto => google.golang.org/genproto v0.0.0-20200117163144-32f20d992d24 // override wasme requirement
 
