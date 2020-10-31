@@ -87,10 +87,11 @@ func (t *translatorInstance) initializeCluster(upstream *v1.Upstream, endpoints 
 		cfg, err := utils.NewSslConfigTranslator().ResolveUpstreamSslConfig(*secrets, sslConfig)
 		if err != nil {
 			reports.AddError(upstream, err)
-		}
-		out.TransportSocket = &envoycore.TransportSocket{
-			Name:       wellknown.TransportSocketTls,
-			ConfigType: &envoycore.TransportSocket_TypedConfig{TypedConfig: utils.MustMessageToAny(cfg)},
+		} else {
+			out.TransportSocket = &envoycore.TransportSocket{
+				Name:       wellknown.TransportSocketTls,
+				ConfigType: &envoycore.TransportSocket_TypedConfig{TypedConfig: utils.MustMessageToAny(cfg)},
+			}
 		}
 	}
 
