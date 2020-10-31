@@ -141,8 +141,9 @@ func translateResponse(in *extauthv1.HttpService_Response) *envoyauth.Authorizat
 	}
 
 	return &envoyauth.AuthorizationResponse{
-		AllowedUpstreamHeaders: translateListMatcher(in.AllowedUpstreamHeaders),
-		AllowedClientHeaders:   translateListMatcher(in.AllowedClientHeaders),
+		AllowedUpstreamHeadersToAppend: translateListMatcher(in.AllowedUpstreamHeadersToAppend),
+		AllowedUpstreamHeaders:         translateListMatcher(in.AllowedUpstreamHeaders),
+		AllowedClientHeaders:           translateListMatcher(in.AllowedClientHeaders),
 	}
 }
 
